@@ -1,0 +1,205 @@
+To create a complete form that posts data to `/product` using the provided `formData` object, you will need to:
+
+1. Dynamically generate form fields based on the `formData` object.
+2. Handle form state and submission.
+3. Conditionally display fields based on user input.
+4. Post form data to the `/product` endpoint.
+
+Here's an example implementation using React and the MUI library:
+
+```javascript
+import React, { useState } from 'react';
+import TextField from '@mui/material/TextField';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
+import CartProducts from '../components/CartProducts';
+import { formData } from '../constants/index';
+import { Checkbox } from '@mui/material';
+import axios from 'axios';
+
+const BillingDetailPage = ({ cartProductsId }) => {
+    const [formState, setFormState] = useState({
+        paymentMethod: 'creditCard',
+        useBillingAddress: false,
+        // Initialize other fields with empty strings or appropriate default values
+    });
+
+    const handleChange = (e) => {
+        const { name, value, type, checked } = e.target;
+        setFormState({
+            ...formState,
+            [name]: type === 'checkbox' ? checked : value,
+        });
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            const response = await axios.post('/product', formState);
+            console.log(response.data);
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    const renderField = (field) => {
+        switch (field.type) {
+            case 'text':
+            case 'email':
+            case 'tel':
+                return (
+                    <TextField
+                        key={field.name}
+                        name={field.name}
+                        type={field.type}
+                        label={field.label}
+                        required={field.required}
+                        value={formState[field.name] || ''}
+                        onChange={handleChange}
+                        inputProps={{ maxLength: field.maxLength }}
+                        variant="outlined"
+                        size="small"
+                        style={{ width: '200px' }}
+                    />
+                );
+            case 'select':
+                return (
+                    <Select
+                        key={field.name}
+                        name={field.name}
+                        value={formState[field.name] || ''}
+                        onChange={handleChange}
+                        variant="outlined"
+                        size="small"
+                        style={{ width: '200px' }}
+                    >
+                        {field.options.map((option) => (
+                            <MenuItem key={option.value} value={option.value}>
+                                {option.label}
+                            </MenuItem>
+                        ))}
+                    </Select>
+                );
+            case 'checkbox':
+                return (
+                    <Checkbox
+                        key={field.name}
+                        name={field.name}
+                        checked={formState[field.name] || false}
+                        onChange={handleChange}
+                    />
+                );
+            default:
+                return null;
+        }
+    };
+
+    const renderFormFields = () => {
+        return Object.keys(formData).map((sectionKey) => {
+            const section = formData[sectionKey];
+            return (
+                <div key={sectionKey}>
+                    <h1 className="font-bold bg-slate-200 p-4">{section.label}</h1>
+                    <br />
+                    <div className="flex flex-wrap gap-4">
+                        {section.fields.map((field) => {
+                            if (
+                                !field.conditional ||
+                                (field.conditional && eval(field.conditional))
+                            ) {
+                                return (
+                                    <div
+                                        className="flex gap-4 w-[400px] justify-between"
+                                        key={field.name}
+                                    >
+                                        <label className="font-semibold">
+                                            {field.label}
+                                        </label>
+                                        {renderField(field)}
+                                    </div>
+                                );
+                            }
+                            return null;
+                        })}
+                    </div>
+                </div>
+            );
+        });
+    };
+
+    return (
+        <div className="m-4 flex flex-col gap-4">
+            <form
+                onSubmit={handleSubmit}
+                method="POST"
+                className="flex flex-col gap-8 w-fit"
+            >
+                {renderFormFields()}
+                <br />
+                <button
+                    type="submit"
+                    className="theme-button m-auto px-10"
+                >
+                    Place Order
+                </button>
+            </form>
+            <div className="w-3/6">
+                <h2 className="font-bold text-xl">Products</h2>
+                <CartProducts cartProductsId={cartProductsId} />
+            </div>
+        </div>
+    );
+};
+
+export default BillingDetailPage;
+```
+
+### Key Points:
+1. **Form State**: Initialize form state with default values.
+2. **Handle Change**: Update form state on input change.
+3. **Render Fields**: Dynamically render fields based on the `formData` object.
+4. **Conditional Rendering**: Conditionally render fields based on conditions specified in `formData`.
+5. **Submit Form**: Handle form submission and post data to `/product`.
+
+This implementation should cover the requirements you specified, allowing for a complete form that handles dynamic fields and posts data to the specified endpoint.
+
+
+
+
+
+
+   const { pageSize = 10, page = 1, order, sortWith = 'rating' } = req.query; // Default priceRange if not provided
+    const decodeString = decodeURIComponent(req.query.categories)
+    const categories = JSON.parse(decodeString)
+    console.log(categories)
+    const priceRange = req.query.priceRange
+
+    const query = categories.length > 0 ? {
+        "category": { $in: categories },
+        "price": priceRange === 'All' ? { $gte: 0 }
+            : { $gte: priceRange.split('-')[0], $lte: priceRange.split('-')[1] },
+    } : {
+        "price": priceRange === 'All' ? { $gte: 0 }
+            : { $gte: priceRange.split('-')[0], $lte: priceRange.split('-')[1] },
+    }
+    const sortQuery = sortWith == 'rating' ? {
+        "rating": order ? order === 'des' ? -1 : 1 : -1
+    } : {
+        "price": order ? order === 'des' ? -1 : 1 : 1
+    }
+
+    try {
+        const products = await
+            Product.
+                find(query).
+                sort(sortQuery).
+                skip((page - 1) * pageSize).
+                limit(pageSize);
+
+        console.log(products.length)
+        res.send(products);
+
+    } catch (error) {
+        console.log("Error in getting constants", error);
+        res.status(500).json({ error: error.message });
+    }
